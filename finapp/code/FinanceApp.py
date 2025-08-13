@@ -8,36 +8,36 @@
 #!pip install langgraph
 
 
-# In[2]:
-
-
-from langgraph.graph import StateGraph, END
-from typing import TypedDict, List
-from langchain_core.messages import HumanMessage, AIMessage
-from langchain_openai import ChatOpenAI
-from typing import TypedDict, List, Dict
-
-
-# In[3]:
+# In[44]:
 
 
 import os
 import getpass
 
+from typing_extensions import Literal
+from pydantic import BaseModel, Field
+from langgraph.graph import StateGraph, START, END
+from IPython.display import Image, display
+from typing import TypedDict, List, Dict, Annotated
+
+from langgraph.graph import StateGraph, END
+from langgraph.graph.message import add_messages
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import PromptTemplate
+
+
+# In[37]:
+
+
 if "OPENAI_API_KEY" not in os.environ:
     os.environ["OPENAI_API_KEY"] = getpass.getpass("Enter your OpenAI API key: ")
 
 
-# In[4]:
+# In[38]:
 
 
-from langchain_core.prompts import PromptTemplate
-
-
-# In[5]:
-
-
-from langchain_openai import ChatOpenAI
+#from langchain_openai import ChatOpenAI
 # Initialize the ChatOpenAI model
 llm = ChatOpenAI(
     model_name="gpt-4o",  # Specify the model (e.g., gpt-4, gpt-3.5-turbo)
@@ -46,12 +46,12 @@ llm = ChatOpenAI(
 )
 
 
-# In[6]:
+# In[39]:
 
 
 # AgentState
 class AgentState(TypedDict):
-    hist_messages: List[Dict[str, str]]  # Conversation history
+    query_history: Annotated[List[BaseMessage], add_messages]
     system_prompt: str              # System prompt
     user_input: str
     query_type: str
@@ -59,13 +59,7 @@ class AgentState(TypedDict):
     output: str
 
 
-# In[7]:
-
-
-from typing_extensions import Literal
-from pydantic import BaseModel, Field
-from langgraph.graph import StateGraph, START, END
-from IPython.display import Image, display
+# In[40]:
 
 
 # Schema for strctured output to use as routing logic
@@ -78,34 +72,62 @@ class Route(BaseModel):
 router = llm.with_structured_output(Route)
 
 
-# In[8]:
+# In[41]:
 
 
-FIN_SYSTEM_PROMPT = """
-You are a Finance Q&A Agent designed to provide accurate, clear, and accessible answers on general financial education topics like budgeting, saving, investing, and more. Use a professional, approachable tone, avoid jargon unless explained, and do not offer personalized advice. Structure responses with a brief answer, followed by an explanation and context. If the question is unclear, ask for clarification. Suggest consulting professionals for specific advice and provide reliable resources for further learning.
+def debug_print(message, level="INFO"):
+    """Print debug messages with timestamp and level."""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}] {level}: {message}")
+
+
+# In[42]:
+
+
+def summarize_query_history(history):
+    """Summarize query history using ChatOpenAI."""
+    if not history:
+        return "No query history available."
+    
+    query_text = "\n".join(history)
+    prompt = ChatPromptTemplate.from_template(
+        "Summarize the following queries in approximately 100 words:\n\n{queries}"
+    )
+    llm = ChatOpenAI(model="gpt-3.5-turbo", max_tokens=400)
+    try:
+        summary = llm.invoke(prompt.format(queries=query_text)).content
+        return summary
+    except Exception as e:
+        return f"Error summarizing history: {e}"
+
+
+# In[43]:
+
+
+router_system_prompt = """
+You are a routing assistant for a financial query system. Your task is to analyze the user's query and determine which of the following agents should handle it:
+
+1. Finance Q&A Agent: Handles general financial education queries (e.g., explaining financial concepts, budgeting, or basic investing terms).
+2. Portfolio Analysis Agent: Reviews and analyzes user portfolios (e.g., questions about portfolio performance, asset allocation, or investment strategies).
+3. Market Analysis Agent: Provides real-time market insights (e.g., stock market trends, economic indicators, or market predictions).
+4. Goal Planning Agent: Assists with financial goal setting and planning (e.g., retirement planning, saving for a house, or long-term financial strategies).
+5. News Synthesizer Agent: Summarizes and contextualizes financial news (e.g., interpreting market news or summarizing recent financial events).
+6. Tax Education Agent: Explains tax concepts and account types (e.g., tax deductions, IRAs, 401(k)s, or tax strategies).
+
+Based on the user's query, identify the most appropriate agent to handle it. Respond with only the name of the selected agent (e.g., "finance", "portfolio", "market", "goal", "news",  "tax" , etc.). If the query is ambiguous or fits multiple agents, choose the most relevant one based on the primary focus of the query.
 """
 
 
-# In[9]:
+# In[47]:
 
 
-from langchain_core.messages import SystemMessage, HumanMessage
-#from langchain_core.messages import SystemMessage, HumanMessage
 # Nodes
 def call_finance_qa_agent(state: AgentState):
-	#""" Finance Q&A Agent """
+    """ Finance Q&A Agent """
     
-	print(" Finance Q&A Agent: Handles general financial education queries ")
-	#result = llm.invoke(state["user_input"])
-	state["system_prompt"] = FIN_SYSTEM_PROMPT
-	ret_state = classify_query(state)
-    
-	#print(ret_state['query_type'])
-	if ret_state['query_type'] == 'real_time':
-		ret_state = retrieve_context(ret_state)
-        
-	return ret_state
-    
+    debug_print("Finance QnA Agent: Handles general financial education queries")
+    result = llm.invoke(state["user_input"])
+    return {"output": result.content}
 
 def call_portfolio_analysis_agent(state: AgentState):
 	""" Portfolio Analysis Agent """
@@ -149,11 +171,7 @@ def finapp_router(state: AgentState):
   # Run the agumented LLM with strctured output to serve as routing logic
   decision = router.invoke(
 		[
-			SystemMessage(
-				content="Route the user_input to finance, portfolio, market, goal, news or tax based on user request"
-			),
-			HumanMessage(content=state["user_input"]),
-
+			SystemMessage(content=router_system_prompt), HumanMessage(content=state["user_input"]),
 		]
 	)
   print(f"decision: {decision.step}")  
@@ -168,7 +186,6 @@ def route_decision(state: AgentState):
 	if decision_str is None:
 		return "call_finance_qa_agent"
 	
-
 	if decision_str == 'finance':
 		return "call_finance_qa_agent"
 	elif decision_str == 'portfolio':
@@ -183,74 +200,7 @@ def route_decision(state: AgentState):
 		return "call_tax_education_agent"
 
 
-# In[15]:
-
-
-# Mock vector database search (replace with real vector store like FAISS)
-def mock_vector_search(query: str) -> str:
-    return f"Mock retrieved data for '{query}': todo"
-
-# Mock external API call (replace with real API like Alpha Vantage)
-def mock_api_call(query: str) -> str:
-    print("inside mock_api_call")
-    return f"Mock API data for '{query}': Real-time financial data not available in this demo."
-	
-
-# Retrieve context for real-time queries
-def retrieve_context(state: AgentState) -> AgentState:
-    query = None
-    if state["query_type"] == "real_time":
-        query = state["user_input"]
-        # Simulate vector database or API call
-
-        context = mock_vector_search(query) if "rate" in query.lower() else mock_api_call(query)
-        state["hist_messages"].append({"role": "system", "content": f"[Retrieved Context]: {context}"})
-    if query:
-        print(query)
-    return state
-
-
-def classify_query(state: AgentState) -> AgentState:
-    query = state["user_input"].lower()
-    time_sensitive_keywords = ["current", "today", "now", "latest", "recent", "2025"]
-    
-    if any(keyword in query for keyword in time_sensitive_keywords):
-        state["query_type"] = "real_time"
-    else:
-        state["query_type"] = "straightforward"
-    return state
-
-# Mock LLM call (replace with real LLM like ChatOpenAI)
-def process_query(state: AgentState) -> AgentState:
-  
-	# Ensure hist_messages is initialized as a list
-	if "hist_messages" not in state or not isinstance(state["hist_messages"], list):
-		state["hist_messages"] = []
-    
-	# Append user input to message history
-	if "user_input" in state and state["user_input"]:
-		state["hist_messages"].append({"role": "user", "content": state["user_input"]})
-    
-	try:
-		# Invoke LLM
-		response = llm.invoke(state["user_input"])
-        
-		# Extract content (adjust based on LLM library)
-		content = response.content if hasattr(response, "content") else response
-        
-		# Append LLM response to message history
-		state["hist_messages"].append({"role": "assistant", "content": content})
-        
-	except Exception as e:
-		# Handle LLM invocation or response parsing errors
-		print(f"Error invoking LLM: {e}")
-		state["hist_messages"].append({"role": "system", "content": f"Error: {str(e)}"})
-    
-	# Return the entire state
-	return state
-
-
-# In[16]:
+# In[48]:
 
 
 # Build workflow
@@ -258,11 +208,6 @@ router_builder = StateGraph(AgentState)
 
 # Add nodes
 router_builder.add_node("call_finance_qa_agent", call_finance_qa_agent)
-
-router_builder.add_node("classify_query", classify_query)
-router_builder.add_node("retrieve_context", retrieve_context)
-router_builder.add_node("process_query", process_query)
-
 router_builder.add_node("call_goal_planning_agent", call_goal_planning_agent)
 router_builder.add_node("call_market_analysis_agent", call_market_analysis_agent)
 router_builder.add_node("call_news_synthesizer_agent", call_news_synthesizer_agent)
@@ -286,12 +231,7 @@ router_builder.add_conditional_edges(
     },
 )
 
-#router_builder.add_edge("call_finance_qa_agent", END)
-router_builder.add_edge("call_finance_qa_agent", "classify_query")
-router_builder.add_edge("classify_query", "retrieve_context")
-router_builder.add_edge("retrieve_context", "process_query")
-router_builder.add_edge("process_query", END)
-
+router_builder.add_edge("call_finance_qa_agent", END)
 router_builder.add_edge("call_goal_planning_agent", END)
 router_builder.add_edge("call_market_analysis_agent", END)
 router_builder.add_edge("call_news_synthesizer_agent", END)
@@ -305,32 +245,11 @@ router_workflow = router_builder.compile()
 display(Image(router_workflow.get_graph().draw_mermaid_png()))
 
 
-# In[12]:
+# In[50]:
 
 
-#state = router_workflow.invoke({"user_input": "what is portfolio?"})
+#state = router_workflow.invoke({"user_input": "How can I create a budget to save for a down payment on a house?"})
 #print(state["output"])
-
-
-# In[20]:
-
-
-def get_assistant_content(state: dict) -> list:
-    # Ensure hist_messages exists and is a list
-    if "hist_messages" not in state or not isinstance(state["hist_messages"], list):
-        return []
-    
-    # Extract content for messages where role is "assistant"
-    assistant_contents = [msg["content"] for msg in state["hist_messages"] if msg.get("role") == "assistant"]
-    return assistant_contents
-
-state = router_workflow.invoke({"user_input": "what is finance?"})
-#response = state['hist_messages']
-
-assistant_messages = get_assistant_content(state)
-
-print(assistant_messages[-1])
-#print(response['role'] == 'assistant')
 
 
 # In[ ]:
@@ -359,10 +278,4 @@ print(assistant_messages[-1])
 
 #state = router_workflow.invoke({"user_input": "Can you provide tax education?"})
 #print(state["output"])
-
-
-# In[ ]:
-
-
-
 
