@@ -1,0 +1,16 @@
+streamlit
+pandas
+yfinance
+numpy
+plotly
+feedparser
+langgraph
+langchain-core
+langchain-openai
+langchain-huggingface
+langchain-community
+pydantic
+faiss-cpu
+python-dotenv
+transformers
+tensorflow

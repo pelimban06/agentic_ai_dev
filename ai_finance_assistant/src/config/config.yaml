@@ -1,0 +1,31 @@
+json_data:
+  directory: "./src/data/json_data"
+  files:
+    - fin_goal_planning_agent.json
+    - fin_market_analysis_agent.json
+    - fin_portfolio_analysis_agent.json
+    - fin_qna_agent_links.json
+    - fin_tax_education_agent.json
+rag:
+  chunk_size: 1000
+  chunk_overlap: 100
+  embedding_model: "all-MiniLM-L6-v2"
+  faiss_index_path: "fin_faiss_index"
+  metadata_path: "chunked_metadata.json"
+llm:
+  model_name: "gpt-4o"
+  temperature: 0.7
+  max_tokens: 512
+
+sp100_tickers = [
+    "NVDA", "MSFT", "AAPL", "GOOG", "GOOGL", "AMZN", "META", "AVGO", "TSLA", "BRK.B",
+    "WMT", "JPM", "ORCL", "V", "LLY", "NFLX", "MA", "XOM", "PLTR", "COST",
+    "JNJ", "HD", "PG", "BAC", "ABBV", "CVX", "KO", "GE", "TMUS", "AMD",
+    "CSCO", "PM", "WFC", "UNH", "MS", "ABT", "LIN", "CRM", "IBM", "MCD",
+    "GS", "BX", "AXP", "RTX", "DIS", "T", "PEP", "MRK", "INTU", "CAT",
+    "UBER", "VZ", "TMO", "BLK", "SCHW", "GEV", "ANET", "NOW", "BKNG", "C",
+    "BA", "TXN", "ISRG", "SPGI", "QCOM", "AMGN", "BSX", "AMAT", "GILD", "ACN",
+    "TJX", "NEE", "DHR", "SYK", "ADBE", "MU", "PGR", "ETN", "PFE", "COF",
+    "HON", "LOW", "DE", "APH", "LRCX", "KKR", "UNP", "KLAC", "ADP", "CMCSA",
+    "COP", "MDT", "PANW", "SNPS", "ADI", "DASH", "MO", "NKE", "WELL", "CRWD"
+]
