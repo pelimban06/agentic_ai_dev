@@ -25,7 +25,7 @@ LangGraph for state management and RAG for context retrieval.
 
 4. **Run the App**:
    ```bash
-   streamlit run src/web_app/app.py
+   streamlit run run_app.py
    ```
 
 ## Usage
