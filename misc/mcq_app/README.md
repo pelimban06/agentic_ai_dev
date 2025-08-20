@@ -47,7 +47,7 @@ Follow these steps to set up and run the application locally:
 6. **Run the application**:
    Start the Streamlit app with:
    ```bash
-   streamlit run app.py
+   streamlit run gen_mcq.py
    ```
    This will launch the application and open a browser window with the GUI, which is self-explanatory.
 
