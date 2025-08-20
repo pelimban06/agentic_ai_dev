@@ -45,54 +45,6 @@ Open your web browser and navigate to `http://localhost:8501` to use the applica
 
 **Note**: If you’re using Podman instead of Docker, you may see a message about emulating Docker CLI. This can be ignored or suppressed by creating `/etc/containers/nodocker`.
 
-## Setup Instructions
-Follow these steps to set up and run the application locally:
-
-1. **Create a virtual environment**:
-   ```bash
-   python3 -m venv mcqvenv
-   source mcqvenv/bin/activate
-   ```
-
-2. **Install dependencies**:
-   Ensure you have a `requirements.txt` file (see below for contents) and run:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Create Streamlit configuration directory**:
-   ```bash
-   mkdir -p .streamlit
-   ```
-
-4. **Create secrets file**:
-   ```bash
-   touch .streamlit/secrets.toml
-   ```
-
-5. **Add OpenAI API key**:
-   Open `.streamlit/secrets.toml` in a text editor and add the following line, replacing `<your own openai key>` with your actual OpenAI API key:
-   ```
-   OPENAI_API_KEY="<your own openai key>"
-   ```
-
-6. **Run the application**:
-   Start the Streamlit app with:
-   ```bash
-   streamlit run app.py
-   ```
-   This will launch the application and open a browser window with the GUI, which is self-explanatory.
-
-## requirements.txt
-Create a `requirements.txt` file with the following content: or use the one in the app directory.
-```
-streamlit==1.39.0
-PyPDF2==3.0.1
-openai==1.51.0
-httpx==0.27.2
-
-```
-
 ## Usage
 1. Open the application in your browser (typically at `http://localhost:8501`).
 2. Upload a PDF file using the file uploader.
