@@ -7,7 +7,7 @@ WORKDIR /app
 # Copy project files
 COPY app.py .
 COPY requirements.txt .
-COPY .streamlit/ .streamlit/
+#COPY .streamlit/ .streamlit/
 
 # Install dependencies
 RUN pip install --upgrade pip
