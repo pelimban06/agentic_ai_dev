@@ -88,7 +88,9 @@ Create a `requirements.txt` file with the following content: or use the one in t
 ```
 streamlit==1.39.0
 PyPDF2==3.0.1
-openai==1.50.2
+openai==1.51.0
+httpx==0.27.2
+
 ```
 
 ## Usage
