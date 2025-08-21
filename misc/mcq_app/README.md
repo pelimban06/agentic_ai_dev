@@ -28,26 +28,10 @@ Follow these steps to set up and run the application locally:
    pip install -r requirements.txt
    ```
 
-3. **Create Streamlit configuration directory**:
-   ```bash
-   mkdir -p .streamlit
-   ```
-
-4. **Create secrets file**:
-   ```bash
-   touch .streamlit/secrets.toml
-   ```
-
-5. **Add OpenAI API key**:
-   Open `.streamlit/secrets.toml` in a text editor and add the following line, replacing `<your own openai key>` with your actual OpenAI API key:
-   ```
-   OPENAI_API_KEY="<your own openai key>"
-   ```
-
-6. **Run the application**:
+3. **Run the application**:
    Start the Streamlit app with:
    ```bash
-   streamlit run gen_mcq.py
+   streamlit run gen_mcq.py OPENAI_API_KEY="<your_key_here>"
    ```
    This will launch the application and open a browser window with the GUI, which is self-explanatory.
 

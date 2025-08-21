@@ -1,43 +1,52 @@
 import streamlit as st
 from PyPDF2 import PdfReader
 from openai import OpenAI
+import os
+import httpx
 
-# Initialize OpenAI client (replace with your actual API key)
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])  # Or use os.getenv("OPENAI_API_KEY")
+# Initialize OpenAI client
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    st.error("OpenAI API key not found. Set the OPENAI_API_KEY environment variable.")
+    st.stop()
 
-# Streamlit app title
+try:
+    client = OpenAI(
+        api_key=api_key,
+        http_client=httpx.Client(proxies=None)  # Explicitly disable proxies
+    )
+    st.success("OpenAI client initialized successfully!")
+except Exception as e:
+    st.error(f"Failed to initialize OpenAI client: {e}")
+    st.stop()
+
 st.title("PDF Q&A and MCQ Generator")
 
-# File uploader for PDF or DOCS (assuming PDF for simplicity; extend for DOCX if needed)
+# File uploader
 uploaded_file = st.file_uploader("Upload your PDF file", type=["pdf"])
 
 # Initialize session state for extracted text
 if "extracted_text" not in st.session_state:
     st.session_state.extracted_text = ""
 
-# Extract text from uploaded PDF
-if uploaded_file is not None:
+# Extract text from PDF
+if uploaded_file:
     try:
         pdf_reader = PdfReader(uploaded_file)
-        text = ""
-        for page in pdf_reader.pages:
-            text += page.extract_text() or ""  # Handle cases where text extraction fails
+        text = "".join(page.extract_text() or "" for page in pdf_reader.pages)
         st.session_state.extracted_text = text
         st.success("PDF uploaded and text extracted successfully!")
     except Exception as e:
         st.error(f"Error extracting text: {e}")
 
-# Display extracted text (optional, for debugging)
+# Display extracted text
 if st.checkbox("Show extracted text"):
     st.text_area("Extracted Text", st.session_state.extracted_text, height=300)
 
-# User choice: Ask question or Generate MCQ
+# User choice: Q&A or MCQ
 action = st.radio("What would you like to do?", ("Ask a Question", "Generate MCQs"))
 
-# Common input: Context limit (optional)
-max_context_tokens = 2000  # Limit context to avoid token limits; adjust based on model
-
-# Truncate text to fit within token limits (rough estimate: 1 token ~ 4 chars)
+max_context_tokens = 2000
 context = st.session_state.extracted_text[:max_context_tokens * 4]
 
 if action == "Ask a Question":
@@ -51,9 +60,9 @@ if action == "Ask a Question":
             
             # Call OpenAI Chat API
             response = client.chat.completions.create(
-                model="gpt-4o-mini",  # Use a suitable model; adjust as needed
+                model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=500,  # Limit response tokens
+                max_tokens=500,
                 temperature=0.7
             )
             
@@ -74,9 +83,9 @@ elif action == "Generate MCQs":
             
             # Call OpenAI Chat API
             response = client.chat.completions.create(
-                model="gpt-4o-mini",  # Use a suitable model; adjust as needed
+                model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=1000,  # Higher limit for MCQs
+                max_tokens=1000,
                 temperature=0.7
             )
             
