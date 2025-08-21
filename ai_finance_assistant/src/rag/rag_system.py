@@ -160,10 +160,10 @@ class RAGSystem:
             print("Debug: No vector store or embeddings available")
             return []
         try:
-            print(f"Debug: Retrieving context for query: {query}")
+            #print(f"Debug: Retrieving context for query: {query}")
             docs = self.vector_store.similarity_search(query, k=k)
             context = [doc.page_content for doc in docs]
-            print(f"Debug: Retrieved documents: {[doc[:50] for doc in context]}")
+            #print(f"Debug: Retrieved documents: {[doc[:50] for doc in context]}")
             return context
         except Exception as e:
             st.error(f"RAG error: {str(e)}")

@@ -85,7 +85,7 @@ class InnerGoalPlanningAgent:
 
 class GoalPlanningAgent:
     def __init__(self):
-        self.llm = ChatOpenAI(model_name="gpt-4o", temperature=0.7, max_tokens=512)
+        self.llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.7, max_tokens=512)
         self.rag = RAGSystem([
             "fin_goal_planning_agent.json",
             "fin_market_analysis_agent.json",
@@ -102,18 +102,6 @@ class GoalPlanningAgent:
         agent = st.session_state.inner_goal_agent
         response = {"goals": [], "overall_plan": {}}
         
-        with st.sidebar:
-            st.subheader("Add New Goal")
-            goal_name = st.text_input("Goal Name")
-            target_amount = st.number_input("Target Amount ($)", min_value=0.0, step=100.0)
-            deadline = st.date_input("Deadline", min_value=dt.date.today())
-            current_savings = st.number_input("Current Savings ($)", min_value=0.0, step=100.0)
-            interest_rate = st.number_input("Expected Annual Interest Rate (%)", min_value=0.0, max_value=20.0, step=0.1)
-            
-            if st.button("Add Goal"):
-                if goal_name and target_amount > 0 and deadline > dt.date.today():
-                    agent.add_goal(goal_name, target_amount, deadline, current_savings, interest_rate)
-                    response["new_goal"] = goal_name
 
         try:
             goals = agent.list_goals()
@@ -136,21 +124,26 @@ class GoalPlanningAgent:
                 response["goals"] = goal_plans
                 response["overall_plan"] = agent.overall_plan()
 
-                # Add LLM-generated advice
+                # Add LLM-generated advice and savings suggestions
                 context = "\n".join(self.rag.retrieve_context(query))
                 if not context:
                     context = "No additional context available."
                 prompt = f"""
                 You are a financial planner. Provide advice (1-2 paragraphs) on achieving the user's financial goals based on the query and context.
+                Include specific savings suggestions by adjusting spending on common American expenses such as travel, vacation, entertainment, dining out, and subscriptions.
                 Query: {query}
                 Context: {context}
                 Current Goals: {', '.join([f'{g["name"]}: ${g["target_amount"]:,.2f} by {g["deadline"]}' for g in goal_plans])}
+                Required Monthly Savings: {', '.join([f'{g["name"]}: ${g["required_monthly_savings"]:,.2f}' for g in goal_plans])}
                 """
                 advice = self.llm.invoke([
                     SystemMessage(content="You are a knowledgeable financial planner."),
                     HumanMessage(content=prompt)
                 ])
                 response["advice"] = advice.content
+                # Extract savings suggestions from advice (assuming they are listed)
+                suggestions = [line.strip() for line in advice.content.split('\n') if line.strip().startswith('- ') or line.strip().startswith('* ')]
+                response["savings_suggestions"] = suggestions if suggestions else ["Consider reducing discretionary spending on travel, entertainment, or subscriptions."]
         except Exception as e:
             st.error(f"Error processing goals: {str(e)}")
             response = {"error": f"Error processing goals: {str(e)}"}

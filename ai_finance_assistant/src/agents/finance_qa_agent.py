@@ -7,7 +7,7 @@ import streamlit as st
 
 class FinanceQAAgent:
     def __init__(self):
-        self.llm = ChatOpenAI(model_name="gpt-4o", temperature=0.7, max_tokens=512)
+        self.llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.7, max_tokens=512)
         self.rag = RAGSystem([
             "fin_goal_planning_agent.json",
             "fin_market_analysis_agent.json",
