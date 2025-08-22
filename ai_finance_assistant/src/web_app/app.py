@@ -2,6 +2,7 @@ import streamlit as st
 import plotly.express as px
 import pandas as pd
 import datetime as dt  # Added to resolve NameError
+import logging  # Import logging to set global level
 from ..workflow.state import AgentState
 from ..workflow.agent_router import create_workflow
 from ..utils.visualizer import PortfolioVisualizer
@@ -9,6 +10,9 @@ from ..core.portfolio import Portfolio
 from ..core.market_data import MarketData
 from ..agents.portfolio_analysis_agent import PortfolioAnalyzer
 from ..agents.goal_planning_agent import InnerGoalPlanningAgent, FinancialGoal  # Import for type checking
+
+# Set global logging level to INFO to suppress debug messages
+logging.getLogger().setLevel(logging.INFO)
 
 class FinancialAgentsApp:
     def __init__(self):

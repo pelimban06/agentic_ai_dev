@@ -30,9 +30,8 @@ class MarketAnalysisAgent:
             'COP', 'MDT', 'PANW', 'SNPS', 'ADI', 'DASH', 'MO', 'NKE', 'WELL', 'CRWD'
         ]
 
-    @st.cache_data(ttl=3600)  # Cache for 1 hour
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-    def _fetch_stock_data(_self, ticker: str) -> Dict:
+    def _fetch_stock_data(self, ticker: str) -> Dict:
         try:
             data = yf.Ticker(ticker)
             info = data.info
@@ -51,8 +50,13 @@ class MarketAnalysisAgent:
         except Exception as e:
             return {"error": f"Failed to fetch data for {ticker}: {str(e)}"}
 
-    @st.cache_data(ttl=3600)  # Cache for 1 hour
-    def _generate_analysis(_self, ticker: str, data: Dict, query: str, context: str) -> str:
+    def _generate_analysis(self, ticker: str, data: Dict, query: str, context: str) -> str:
+        market_cap_str = f"${data['market_cap']:,.0f}" if isinstance(data.get('market_cap'), (int, float)) else data.get('market_cap', 'N/A')
+        avg_volume_str = f"{data.get('average_volume', 'N/A'):,.0f}" if isinstance(data.get('average_volume'), (int, float)) else data.get('average_volume', 'N/A')
+        dividend_yield_str = f"{data.get('dividend_yield', 'N/A')}" if isinstance(data.get('dividend_yield'), (int, float)) else data.get('dividend_yield', 'N/A')
+        fifty_two_week_high_str = f"${data.get('fifty_two_week_high', 'N/A')}" if isinstance(data.get('fifty_two_week_high'), (int, float)) else data.get('fifty_two_week_high', 'N/A')
+        fifty_two_week_low_str = f"${data.get('fifty_two_week_low', 'N/A')}" if isinstance(data.get('fifty_two_week_low'), (int, float)) else data.get('fifty_two_week_low', 'N/A')
+
         prompt = f"""
         You are a market analyst. Provide a detailed analysis (2-3 paragraphs) of the stock, including:
         - Current performance based on price, market cap, P/E ratio, volume, and dividend yield
@@ -61,17 +65,17 @@ class MarketAnalysisAgent:
         Data:
         - Ticker: {ticker}
         - Current Price: ${data.get('current_price', 'N/A')}
-        - Market Cap: ${data.get('market_cap', 'N/A'):,.0f}
+        - Market Cap: {market_cap_str}
         - P/E Ratio: {data.get('pe_ratio', 'N/A')}
-        - Average Volume: {data.get('average_volume', 'N/A'):,.0f}
-        - Dividend Yield: {data.get('dividend_yield', 'N/A')}%
-        - 52-Week High: ${data.get('fifty_two_week_high', 'N/A')}
-        - 52-Week Low: ${data.get('fifty_two_week_low', 'N/A')}
+        - Average Volume: {avg_volume_str}
+        - Dividend Yield: {dividend_yield_str}%
+        - 52-Week High: {fifty_two_week_high_str}
+        - 52-Week Low: {fifty_two_week_low_str}
         Query: {query}
         Context: {context}
         """
         try:
-            analysis = _self.llm.invoke([
+            analysis = self.llm.invoke([
                 SystemMessage(content="You are a knowledgeable market analyst providing detailed insights."),
                 HumanMessage(content=prompt)
             ])
@@ -83,7 +87,6 @@ class MarketAnalysisAgent:
         query = state["query"]
         ticker = None
         words = query.upper().split()
-        #print(words)
         for word in words:
             if word in self.sp100_tickers:
                 ticker = word
@@ -94,16 +97,15 @@ class MarketAnalysisAgent:
             if not ticker:
                 response = {"error": "Please include a valid S&P 100 ticker symbol in your query (e.g., AAPL, MSFT)."}
             else:
-                # Fetch stock data with caching and retry
+                # Fetch stock data
                 response = self._fetch_stock_data(ticker)
                 if "error" in response:
-                    st.error(response["error"])
+                    pass  # Error is already in response
                 else:
                     # Generate detailed analysis
                     context = "\n".join(self.rag.retrieve_context(query)) or "No additional context available."
                     response["analysis"] = self._generate_analysis(ticker, response, query, context)
         except Exception as e:
-            st.error(f"Error processing market data: {str(e)}")
             response = {"error": f"Error processing market data: {str(e)}"}
 
         state["response"] = response

@@ -20,7 +20,7 @@ class FinancialGoal:
         months = (self.deadline.year - today.year) * 12 + (self.deadline.month - today.month)
         if self.deadline.day < today.day:
             months -= 1
-        return max(months, 1)
+        return max(0, months)  # Return 0 for past deadlines
     
     def __repr__(self):
         return f"FinancialGoal(name={self.name}, target={self.target_amount}, deadline={self.deadline})"
@@ -31,6 +31,8 @@ class GoalPlanner:
     
     def required_monthly_savings(self) -> float:
         months = self.goal.months_to_deadline()
+        if months <= 0:  # Handle past or current deadline
+            return 0.0
         if self.goal.interest_rate == 0:
             return (self.goal.target_amount - self.goal.current_savings) / months
         
@@ -102,7 +104,6 @@ class GoalPlanningAgent:
         agent = st.session_state.inner_goal_agent
         response = {"goals": [], "overall_plan": {}}
         
-
         try:
             goals = agent.list_goals()
             if goals:

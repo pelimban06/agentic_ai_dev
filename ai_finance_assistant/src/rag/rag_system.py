@@ -25,6 +25,14 @@ class RAGSystem:
             self.embeddings = None
         self.vector_store = None
         self._initialize_vector_store()
+        self._data_files = [
+            "fin_goal_planning_agent.json",
+            "fin_market_analysis_agent.json",
+            "fin_portfolio_analysis_agent.json",
+            "fin_qna_agent_links.json",
+            "fin_tax_education_agent.json",
+        ]
+
 
     def _extract_urls_from_json(self, file_path: str) -> List[str]:
         try:

@@ -1,28 +1,21 @@
 from typing import Dict, List
 from langgraph.graph import StateGraph, START, END
 from pydantic import BaseModel, Field
+from pydantic.json_schema import JsonSchemaValue  # For json_schema_extra
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage
-from ..agents import FinanceQAAgent, PortfolioAnalysisAgent, MarketAnalysisAgent, GoalPlanningAgent, NewsSynthesizerAgent, TaxEducationAgent
-from ..rag.rag_system import RAGSystem
 from .state import AgentState
 import streamlit as st
+from ..rag.rag_system import RAGSystem
 
 class Route(BaseModel):
     step: str = Field(
-        None, description="The next step in the routing process", enum=["finance", "portfolio", "market", "goal", "news", "tax"]
+        description="The next step in the routing process",
+        json_schema_extra={"enum": ["finance", "portfolio", "market", "goal", "news", "tax"]}
     )
 
 class AgentRouter:
     def __init__(self):
-        self.agents = {
-            "finance": FinanceQAAgent(),
-            "portfolio": PortfolioAnalysisAgent(),
-            "market": MarketAnalysisAgent(),
-            "goal": GoalPlanningAgent(),
-            "news": NewsSynthesizerAgent(),
-            "tax": TaxEducationAgent(),
-        }
         self.llm = ChatOpenAI(
             model_name="gpt-4o-mini",
             temperature=0.7,
@@ -37,6 +30,17 @@ class AgentRouter:
             "fin_tax_education_agent.json",
         ])
     
+    def get_agents(self):
+        from ..agents import FinanceQAAgent, PortfolioAnalysisAgent, MarketAnalysisAgent, GoalPlanningAgent, NewsSynthesizerAgent, TaxEducationAgent
+        return {
+            "finance": FinanceQAAgent(),
+            "portfolio": PortfolioAnalysisAgent(),
+            "market": MarketAnalysisAgent(),
+            "goal": GoalPlanningAgent(),
+            "news": NewsSynthesizerAgent(),
+            "tax": TaxEducationAgent(),
+        }
+
     def route(self, state: AgentState) -> AgentState:
         router_system_prompt = """
         You are a routing assistant for a financial agents app. Based on the user query and the provided context, determine which agent to route to:
@@ -67,8 +71,9 @@ class AgentRouter:
         return state
 
     def dispatch(self, state: AgentState) -> AgentState:
+        agents = self.get_agents()
         agent_name = state["decision"]
-        agent = self.agents.get(agent_name)
+        agent = agents.get(agent_name)
         if agent:
             state = agent.execute(state)
         else:
@@ -77,8 +82,9 @@ class AgentRouter:
 
 def create_workflow():
     workflow = StateGraph(AgentState)
-    workflow.add_node("router", AgentRouter().route)
-    workflow.add_node("dispatch", AgentRouter().dispatch)
+    router = AgentRouter()
+    workflow.add_node("router", router.route)
+    workflow.add_node("dispatch", router.dispatch)
     workflow.add_edge(START, "router")
     workflow.add_edge("router", "dispatch")
     workflow.add_edge("dispatch", END)
