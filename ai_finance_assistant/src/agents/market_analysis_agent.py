@@ -19,7 +19,7 @@ class MarketAnalysisAgent:
         ])
         self.sp100_tickers = [
             'NVDA', 'MSFT', 'AAPL', 'GOOG', 'GOOGL', 'AMZN', 'META', 'AVGO', 'TSLA', 'BRK.B',
-            'WMT', 'JPM', 'ORCL', 'V', 'LLY', 'NFLX', 'MA', 'XOM', 'PLTR', 'COST',
+            'WMT', 'JPM', 'ORCL', 'V', 'LLY', 'PLTR', 'COST', 'MA', 'NFLX', 'XOM',
             'JNJ', 'HD', 'PG', 'BAC', 'ABBV', 'CVX', 'KO', 'GE', 'TMUS', 'AMD',
             'CSCO', 'PM', 'WFC', 'UNH', 'MS', 'ABT', 'LIN', 'CRM', 'IBM', 'MCD',
             'GS', 'BX', 'AXP', 'RTX', 'DIS', 'T', 'PEP', 'MRK', 'INTU', 'CAT',
@@ -29,6 +29,10 @@ class MarketAnalysisAgent:
             'HON', 'LOW', 'DE', 'APH', 'LRCX', 'KKR', 'UNP', 'KLAC', 'ADP', 'CMCSA',
             'COP', 'MDT', 'PANW', 'SNPS', 'ADI', 'DASH', 'MO', 'NKE', 'WELL', 'CRWD'
         ]
+        self.indices = {
+            "S&P 500": "^GSPC",
+            "Dow Jones": "^DJI"
+        }
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     def _fetch_stock_data(self, ticker: str) -> Dict:
@@ -50,30 +54,52 @@ class MarketAnalysisAgent:
         except Exception as e:
             return {"error": f"Failed to fetch data for {ticker}: {str(e)}"}
 
-    def _generate_analysis(self, ticker: str, data: Dict, query: str, context: str) -> str:
-        market_cap_str = f"${data['market_cap']:,.0f}" if isinstance(data.get('market_cap'), (int, float)) else data.get('market_cap', 'N/A')
-        avg_volume_str = f"{data.get('average_volume', 'N/A'):,.0f}" if isinstance(data.get('average_volume'), (int, float)) else data.get('average_volume', 'N/A')
-        dividend_yield_str = f"{data.get('dividend_yield', 'N/A')}" if isinstance(data.get('dividend_yield'), (int, float)) else data.get('dividend_yield', 'N/A')
-        fifty_two_week_high_str = f"${data.get('fifty_two_week_high', 'N/A')}" if isinstance(data.get('fifty_two_week_high'), (int, float)) else data.get('fifty_two_week_high', 'N/A')
-        fifty_two_week_low_str = f"${data.get('fifty_two_week_low', 'N/A')}" if isinstance(data.get('fifty_two_week_low'), (int, float)) else data.get('fifty_two_week_low', 'N/A')
+    def _generate_analysis(self, data: Dict, query: str, context: str, is_general: bool = False) -> str:
+        if is_general:
+            # Generate general market analysis
+            sp_data = data.get("S&P 500", {})
+            dj_data = data.get("Dow Jones", {})
 
-        prompt = f"""
-        You are a market analyst. Provide a detailed analysis (2-3 paragraphs) of the stock, including:
-        - Current performance based on price, market cap, P/E ratio, volume, and dividend yield
-        - Historical price trends over the past year
-        - Market trends and insights based on the provided context
-        Data:
-        - Ticker: {ticker}
-        - Current Price: ${data.get('current_price', 'N/A')}
-        - Market Cap: {market_cap_str}
-        - P/E Ratio: {data.get('pe_ratio', 'N/A')}
-        - Average Volume: {avg_volume_str}
-        - Dividend Yield: {dividend_yield_str}%
-        - 52-Week High: {fifty_two_week_high_str}
-        - 52-Week Low: {fifty_two_week_low_str}
-        Query: {query}
-        Context: {context}
-        """
+            sp_current = f"${sp_data.get('current_price', 'N/A')}"
+            dj_current = f"${dj_data.get('current_price', 'N/A')}"
+
+            prompt = f"""
+            You are a market analyst. Provide a detailed analysis (2-3 paragraphs) of the overall market trends, including:
+            - Performance of S&P 500 and Dow Jones indices
+            - Historical trends over the past year
+            - Broader market insights and potential implications based on the provided context
+            Data:
+            - S&P 500 Current Price: {sp_current}
+            - Dow Jones Current Price: {dj_current}
+            Query: {query}
+            Context: {context}
+            """
+        else:
+            ticker = data.get("ticker")
+            market_cap_str = f"${data['market_cap']:,.0f}" if isinstance(data.get('market_cap'), (int, float)) else data.get('market_cap', 'N/A')
+            avg_volume_str = f"{data.get('average_volume', 'N/A'):,.0f}" if isinstance(data.get('average_volume'), (int, float)) else data.get('average_volume', 'N/A')
+            dividend_yield_str = f"{data.get('dividend_yield', 'N/A')}" if isinstance(data.get('dividend_yield'), (int, float)) else data.get('dividend_yield', 'N/A')
+            fifty_two_week_high_str = f"${data.get('fifty_two_week_high', 'N/A')}" if isinstance(data.get('fifty_two_week_high'), (int, float)) else data.get('fifty_two_week_high', 'N/A')
+            fifty_two_week_low_str = f"${data.get('fifty_two_week_low', 'N/A')}" if isinstance(data.get('fifty_two_week_low'), (int, float)) else data.get('fifty_two_week_low', 'N/A')
+
+            prompt = f"""
+            You are a market analyst. Provide a detailed analysis (2-3 paragraphs) of the stock, including:
+            - Current performance based on price, market cap, P/E ratio, volume, and dividend yield
+            - Historical price trends over the past year
+            - Market trends and insights based on the provided context
+            Data:
+            - Ticker: {ticker}
+            - Current Price: ${data.get('current_price', 'N/A')}
+            - Market Cap: {market_cap_str}
+            - P/E Ratio: {data.get('pe_ratio', 'N/A')}
+            - Average Volume: {avg_volume_str}
+            - Dividend Yield: {dividend_yield_str}%
+            - 52-Week High: {fifty_two_week_high_str}
+            - 52-Week Low: {fifty_two_week_low_str}
+            Query: {query}
+            Context: {context}
+            """
+
         try:
             analysis = self.llm.invoke([
                 SystemMessage(content="You are a knowledgeable market analyst providing detailed insights."),
@@ -94,17 +120,29 @@ class MarketAnalysisAgent:
         
         response = {}
         try:
+            context = "\n".join(self.rag.retrieve_context(query)) or "No additional context available."
+
             if not ticker:
-                response = {"error": "Please include a valid S&P 100 ticker symbol in your query (e.g., AAPL, MSFT)."}
+                # Provide general market analysis using S&P 500 and Dow Jones
+                data = {}
+                for name, symbol in self.indices.items():
+                    index_data = self._fetch_stock_data(symbol)
+                    if "error" in index_data:
+                        data[name] = {"error": index_data["error"]}
+                    else:
+                        data[name] = index_data
+                response = {
+                    "indices_data": data,
+                    "analysis": self._generate_analysis(data, query, context, is_general=True)
+                }
             else:
-                # Fetch stock data
-                response = self._fetch_stock_data(ticker)
-                if "error" in response:
-                    pass  # Error is already in response
+                # Specific ticker analysis
+                data = self._fetch_stock_data(ticker)
+                if "error" in data:
+                    response = data
                 else:
-                    # Generate detailed analysis
-                    context = "\n".join(self.rag.retrieve_context(query)) or "No additional context available."
-                    response["analysis"] = self._generate_analysis(ticker, response, query, context)
+                    response = data
+                    response["analysis"] = self._generate_analysis(response, query, context)
         except Exception as e:
             response = {"error": f"Error processing market data: {str(e)}"}
 
