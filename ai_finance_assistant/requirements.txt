@@ -14,3 +14,4 @@ faiss-cpu
 python-dotenv
 transformers
 tensorflow
+gnews
