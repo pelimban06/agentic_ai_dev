@@ -50,24 +50,31 @@ class AgentRouter:
         - "goal": Financial goal planning (e.g., plan for retirement, savings).
         - "news": Financial news requests (e.g., latest stock news).
         - "tax": Tax-related questions (e.g., Roth IRA, tax deductions).
+        If the query does not fit any of these categories, respond with "none".
         Context: {context}
-        Return a structured response with the 'step' field set to the appropriate agent.
+        Return a structured response with the 'step' field set to the appropriate agent or "none".
         """
-        
+
         context = "\n".join(self.rag.retrieve_context(state["query"]))
         state["rag_context"] = self.rag.retrieve_context(state["query"])
-        
+
         try:
             decision = self.router.invoke([
                 SystemMessage(content=router_system_prompt.format(context=context)),
                 HumanMessage(content=state["query"])
             ])
-            state["decision"] = decision.step
-            state["agent_name"] = decision.step.capitalize()
+            if decision.step == "none":
+                state["response"] = {"error": "I am a finance agent, this question cannot be answered by this app."}
+                state["decision"] = None
+                state["agent_name"] = None
+            else:
+                state["decision"] = decision.step
+                state["agent_name"] = decision.step.capitalize()
         except Exception as e:
             st.error(f"Routing error: {str(e)}")
-            state["decision"] = "finance"
-            state["agent_name"] = "Finance"
+            state["response"] = {"error": "I am a finance agent, this question cannot be answered by this app."}
+            state["decision"] = None
+            state["agent_name"] = None
         return state
 
     def dispatch(self, state: AgentState) -> AgentState:
